@@ -105,5 +105,25 @@ def guess_utc_time(hint: datetime, local_time: str) -> datetime:
         return datetime.combine(local_tomorrow, parsed_time.time()).astimezone(utc)
 
 
+def fix_train_time(train, hint):
+    # I hate that this is done as a mutation
+    train["scheduled_departure"] = guess_utc_time(hint, train["scheduled_departure"])
+
+
+def fix_station_times(station, hint):
+    station["reported_time"] = guess_utc_time(hint, station["reported_time"])
+    for train in station["trains"]:
+        fix_train_time(train, hint)
+
+
+def parse_station_file(filename):
+    soup = BeautifulSoup(open(filename), "lxml")
+    hint = time_from_filename(filename)
+    station_dict = parse_station(soup)
+    #    print(station_dict)
+    fix_station_times(station_dict, hint)
+    return station_dict
+
+
 test_file = sys.argv[1]
-soup = BeautifulSoup(open(test_file), "lxml")
+print(parse_station_file(test_file))
