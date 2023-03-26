@@ -3,6 +3,7 @@ import re
 import sys
 from datetime import datetime, timedelta
 from pytz import timezone
+import sqlalchemy as db
 
 
 def parse_station(soup):
@@ -106,11 +107,12 @@ def guess_utc_time(hint: datetime, local_time: str) -> datetime:
 
 
 def fix_train_time(train, hint):
-    # I hate that this is done as a mutation
+    # I hate that this is done as a mutation.
     train["scheduled_departure"] = guess_utc_time(hint, train["scheduled_departure"])
 
 
 def fix_station_times(station, hint):
+    # I also hate that this is done as a mutation.
     station["reported_time"] = guess_utc_time(hint, station["reported_time"])
     for train in station["trains"]:
         fix_train_time(train, hint)
@@ -125,5 +127,65 @@ def parse_station_file(filename):
     return station_dict
 
 
+# class Train(db.ext.declarative.declarative_base()):
+#    __tablename__ = "trains"
+#    id = db.Column(db.Integer, primary_key=True)
+#    line = db.Column(db.String),
+#    number = db.Column(db.String),
+#    scheduled_departure = db.Column(db.DateTime),
+#    track db.Column(db.String),
+
 test_file = sys.argv[1]
-print(parse_station_file(test_file))
+# print(parse_station_file(test_file))
+
+engine = db.create_engine("sqlite:///trains.sqlite", echo=True)
+conn = engine.connect()
+metadata = db.MetaData()
+trains = db.Table(
+    "trains",
+    metadata,
+    db.Column("id", db.Integer, primary_key=True),
+    db.Column("line", db.String),
+    db.Column("number", db.String),
+    db.Column("scheduled_departure", db.DateTime),
+    db.Column("track", db.String),
+)
+metadata.create_all(engine)
+print(trains.columns.keys())
+
+station = parse_station_file(test_file)
+for train in station["trains"]:
+    if train.get("track"):
+        # where(db.and_(Student.columns.Major == 'English', Student.columns.Pass != True))
+        query = trains.select().where(
+            db.and_(
+                trains.columns.line == train["line"],
+                trains.columns.number == train["number"],
+                trains.columns.scheduled_departure == train["scheduled_departure"],
+            )
+        )
+        output_rows = conn.execute(query).fetchall()
+        row_count = len(output_rows)
+        print(f"About to go into the rowcount switch section. (It is {row_count}.)")
+        if row_count == 0:
+            print("This train isn't in the database so let's add it.")
+            query = db.insert(trains).values(
+                line=train["line"],
+                number=train["number"],
+                scheduled_departure=train["scheduled_departure"],
+                track=train["track"],
+            )
+            result = conn.execute(query)
+        elif row_count == 1:
+            row = output_rows[0]
+            if row.track != train["track"]:
+                raise Exception(
+                    f"uh the train used to be on {row.track} and now it's on {train['track']}"
+                )
+            else:
+                print(
+                    "We logged this train on this track already, so we're good for now."
+                )
+        if row_count > 1:
+            raise Exception("how did we have more than one of these things?")
+conn.commit()

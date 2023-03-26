@@ -9,6 +9,7 @@ lxml = "*"
 black = "*"
 pytz = "*"
 typing-extensions = "*"
+sqlalchemy = "*"
 
 [dev-packages]
 
