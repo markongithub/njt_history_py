@@ -12,6 +12,9 @@ def parse_station(soup):
         lambda tag: tag.name == "span"
         and tag.get("class") == ["d-block", "d-md-inline-block", "ml-md-3"]
     )
+    if not clock_span:
+        print("This doesn't look like a format I recognize.")
+        return None
     output["reported_time"] = clock_span.text.strip()
     train_ol = soup.find(
         lambda tag: tag.name == "ol" and tag.get("class") == ["list-unstyled"]
@@ -122,6 +125,8 @@ def parse_station_file(filename):
     soup = BeautifulSoup(open(filename), "lxml")
     hint = time_from_filename(filename)
     station_dict = parse_station(soup)
+    if not station_dict:
+        return None
     #    print(station_dict)
     fix_station_times(station_dict, hint)
     return station_dict
@@ -192,4 +197,6 @@ print(trains.columns.keys())
 
 for filename in sys.argv[1:]:
     station = parse_station_file(filename)
-    log_all_trains(station, conn)
+    # print(station)
+    if station:
+        log_all_trains(station, conn)
