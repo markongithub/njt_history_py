@@ -4,14 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-beautifulsoup4 = "*"
 lxml = "*"
 black = "*"
 pytz = "*"
-typing-extensions = "*"
-sqlalchemy = "*"
+beautifulsoup4 = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.7"
+python_version = "3.12"
